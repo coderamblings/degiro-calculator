@@ -1,5 +1,3 @@
-degiro-caculator README.md
-
 # Kalkulator zysków / strat Degiro
 TBD: 
 - manual in English
@@ -7,7 +5,7 @@ TBD:
 - rewrite for python3
 
 
-Programik napisany, by móc wygodniej wypełniać PIT, tudzież przejdzeć historię dokonań.
+Programik napisany, by móc wygodniej wypełniać PIT, tudzież przejrzeć historię dokonań.
 
 Skrócony opis wykorzystania programu:
 
@@ -22,7 +20,7 @@ Skrócony opis wykorzystania programu:
 create database stockprofit;
 create user 'stockprofit'@'localhost';
 grant all privileges on stockprofit.* to 'stockprofit'@'localhost';
-
+grant file on *.* to 'stockprofit'@'localhost';
 flush privileges;
 ```
 
@@ -34,7 +32,8 @@ Wrzuć plik z transakcjami (**Transactions.csv**) do katalogu bazy stockprofit (
 Domyślnie Degiro generuje raport posortowany po dacie od operacji najnowszych, do najstarszych, potrzebujemy odwrócić tę kolejność, albo w arkuszu kalkulacyjnym, albo BASHem:
 ```
 tac Transactions.csv > trx_tmp.csv
-mv -f trx_tmp.csv Transactions.csv
+head -n -1 trx_tmp.csv > Transactions.csv
+rm trx_tmp.csv
 ```
 
 Odpal sesję w bazie użytkowikiem stockprofit, stwórz tabelę źródłową, załaduj to niej raport Degiro:
@@ -88,4 +87,3 @@ Np.
 select sum(profit) from sales where YEAR(date) = 2017;
 select YEAR(date), sum(profit) from sales where stock_name = 'CI GAMES SA' group by YEAR(date);
 ```
-
