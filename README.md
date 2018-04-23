@@ -1,5 +1,5 @@
 # Kalkulator zysków / strat Degiro
-TBD: 
+TBD:
 - manual in English
 - further automation of preparatory steps
 - rewrite for python3
@@ -39,14 +39,13 @@ rm trx_tmp.csv
 Odpal sesję w bazie użytkowikiem stockprofit, stwórz tabelę źródłową, załaduj to niej raport Degiro:
 ```
 mysql stockprofit -ustockprofit
-create table input(date DATE, time date, stock_name varchar(150), ISIN varchar(20), stock_market varchar(7), stock_no int, currency1 varchar(3), stock_rate float, currency2 varchar(3), trx_local_value float, currency3 varchar(3), trx_value_pln float, exchange_rate float, currency4 varchar(3), degiro_fee float, currency5 varchar(3), total_cost float);
+create table input(date DATE, time date, stock_name varchar(150), ISIN varchar(20), stock_market varchar(7), stock_no int, currency1 varchar(3), stock_rate DOUBLE, currency2 varchar(3), trx_local_value DOUBLE, currency3 varchar(3), trx_value_pln DOUBLE, exchange_rate DOUBLE, currency4 varchar(3), degiro_fee DOUBLE, currency5 varchar(3), total_cost DOUBLE);
 
-create table sales (date date, stock_name varchar(150), sale_price_pln float, sale_value_pln float, sold_stock_no int, purchase_value_pln float, profit float);
+create table sales (date date, stock_name varchar(150), sale_price_pln DOUBLE, sale_value_pln DOUBLE, sold_stock_no int, purchase_value_pln DOUBLE, profit DOUBLE);
 
-load data infile '/var/lib/mysql/stockprofit/Transactions.csv' into table input 
-FIELDS TERMINATED BY ',' 
-IGNORE 1 LINES
-(@c1, time, stock_name, ISIN, stock_market, stock_no, currency1, stock_rate, currency2, trx_local_value, currency3, trx_value_pln, exchange_rate, currency4, degiro_fee, currency5, total_cost) 
+load data infile '/var/lib/mysql/stockprofit/Transactions.csv' into table input
+FIELDS TERMINATED BY ','
+(@c1, time, stock_name, ISIN, stock_market, stock_no, currency1, stock_rate, currency2, trx_local_value, currency3, trx_value_pln, exchange_rate, currency4, degiro_fee, currency5, total_cost)
 SET date = str_to_date(@c1, '%d-%m-%Y')
 ;
 ```
@@ -65,7 +64,7 @@ sed -i 's/\"//g' table_list.txt
 sed -i "s/'//g" table_list.txt
 
 IFS=$'\n'
-for name in `cat table_list.txt`; do echo "create table \`$name\` (ID int NOT NULL AUTO_INCREMENT PRIMARY KEY, date date, stock_name varchar(150), trx_value_pln float, available_stock_no int, orig_stock_no int, purchase_price_pln float);" >> table_list.sql; done;
+for name in `cat table_list.txt`; do echo "create table \`$name\` (ID int NOT NULL AUTO_INCREMENT PRIMARY KEY, date date, stock_name varchar(150), trx_value_pln DOUBLE, available_stock_no int, orig_stock_no int, purchase_price_pln DOUBLE);" >> table_list.sql; done;
 mysql -ustockprofit stockprofit < table_list.sql
 ```
 Przy okazji, warto w tym miejscu przygotować sobie komendy to czyszczenia tych wszystkich tabel, gdyby skrypt po drodze się gdzieś wysypał, albo gdy zaktualizujemy dane źródłowe. Wykorzystujemy stworzony przed chwilą plik `table_list.txt`.
@@ -83,7 +82,24 @@ Jedyna zależność skryptu to pymysql, `pip install pymysql`, globalnie lub w �
 
 ## Analizuj
 Np.
+1. Jak poszedł mi dany rok?
+2. Jak poszły mi ostatnie lata?
+3. Jaki osiągnąłem zysk na wybranych akcjach na przestrzeni lat?
+4. Jaka jest średnia cena zakupu wybranych akcji, które posiadam?
+5. Na jaką kwotę dokonałem sprzedaży w danym roku?
+6. Ile łącznie kosztował zakup akcji, które sprzedałem w danym roku?
+
+Różnica 5 i 6 to zysk/strata w danym roku.
+
 ```
-select sum(profit) from sales where YEAR(date) = 2017;
-select YEAR(date), sum(profit) from sales where stock_name = 'CI GAMES SA' group by YEAR(date);
+1. select sum(profit) from sales where YEAR(date) = 2017;
+2. select YEAR(date), sum(profit) from sales GROUP BY YEAR(date);
+3. select YEAR(date), sum(profit) from sales where stock_name = '*stock-name*' group by YEAR(date);
+4. select round(sum(purchase_price_pln * available_stock_no)/sum(available_stock_no),2) from `*stock-name*`;
+5. select sum(trx_value_pln) FROM input where YEAR(DATE) = 2017 AND trx_value_pln > 0;
+6. select sum(purchase_value_pln) from sales where YEAR(date) = 2017;
+```
+Powyższe wyliczenia nie uwzględniają opłat Degiro, te można zliczyć z tabeli input np.
+```
+select sum(degiro_fee) from input where YEAR(date) = 2017;
 ```
