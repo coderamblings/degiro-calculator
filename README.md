@@ -5,12 +5,12 @@ TBD:
 - rewrite for python3
 
 
-Programik napisany, by móc wygodniej wypełniać PIT, tudzież przejrzeć historię dokonań.
+Programik napisany, by móc przejrzeć historię swoich dokonań na giełdzie, wyliczyć średnią cenę zakupu trzymanych akcji, ew. wyliczyć zyski / straty, gdyby Degiro nie dostarczyło rocznego raportu (zalecałbym jednak ostrożność, w tej chwili programik generuje różnice rzędu 25gr na 100K PLN obrotu względem raportu Degiro).
 
 Skrócony opis wykorzystania programu:
 
 1. Przygotuj bazę danych + użytkownika.
-2. Załaduj raport transakcji degiro do źródłowej tabeli, wygeneruj tabele dla poszczególnych firm.
+2. Załaduj raport transakcji degiro do źródłowej tabeli, wygeneruj tabele dla poszczególnych firm / akcji.
 3. Odpal program.
 4. Analizuj.
 
@@ -56,7 +56,7 @@ Teraz trzeba sprawdzić poprawność wgranych danych - najczęstszy błąd: prze
 select * from input where stock_no = 0;
 select * from input where LENGTH(ISIN) <> 12;
 ````
-Jeśli którakolwiek z powyższych kwerend zwraca wynik inny niż 0, dane wejściowe prawdopodobnie wymagają poprawki. Usuń nadmiarowe przecinki lub inne niespodzianki, przeczyść tabelę (`delete from input;`) i załaduj dane ponownie (`load data infile ...`).
+Jeśli któraś z powyższych kwerend zwraca wynik inny niż 0, dane wejściowe prawdopodobnie wymagają poprawki. Usuń nadmiarowe przecinki lub inne niespodzianki, przeczyść tabelę (`delete from input;`) i załaduj dane ponownie (`load data infile ...`).
 
 Skoro plik Transactions.csv został przeczyszczony, wracamy do BASHa i generujemy komendy do stworzenia tabel per firmy, przy okazji usuwając z nich cudzysłowy
 ```
