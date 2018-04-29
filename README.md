@@ -43,11 +43,12 @@ create table input(date DATE, time date, stock_name varchar(150), ISIN varchar(2
 
 create table sales (date date, stock_name varchar(150), sale_price_pln DOUBLE, sale_value_pln DOUBLE, sold_stock_no int, purchase_value_pln DOUBLE, profit DOUBLE);
 
-load data infile '/var/lib/mysql/stockprofit/Transactions.csv' into table input
-FIELDS TERMINATED BY ','
-(@c1, time, stock_name, ISIN, stock_market, stock_no, currency1, stock_rate, currency2, trx_local_value, currency3, trx_value_pln, exchange_rate, currency4, degiro_fee, currency5, total_cost)
-SET date = str_to_date(@c1, '%d-%m-%Y')
-;
+load data infile '/var/lib/mysql/stockprofit/Transactions.csv' into table input 
+FIELDS TERMINATED BY ',' (@c1, @c2, stock_name, ISIN, stock_market, stock_no, currency1, stock_rate, currency2, trx_local_value, currency3, trx_value_pln, @rate, currency4, @fee, currency5, total_cost) 
+SET date = str_to_date(@c1, '%d-%m-%Y'), 
+time = NULL, 
+exchange_rate = NULLIF(@rate, ''), 
+degiro_fee = NULLIF(@fee, '');
 ```
 
 Teraz trzeba sprawdzić poprawność wgranych danych - najczęstszy błąd: przecinek w nazwie akcji, który rozbija ilość kolumn w danym wierszu.
