@@ -8,7 +8,7 @@ import pymysql as m
 import pymysql.cursors
 
 def process_purchase(row):
-    """Gets a row read from inut table, picks selected columns and inserts into proper table"""
+    """Gets a row read from input table, picks selected columns and inserts into proper table"""
     """Removes double and single quotes from stock names"""
     normalized_name = row["stock_name"]
     normalized_name = normalized_name.replace('"','')
@@ -18,8 +18,11 @@ def process_purchase(row):
     print 'Performing an insert of a purchase operation into' + table_name
     #Row value which contains spaces needs to be surrounded by quotes, thus u0022
     stock_name = u"\u0022" + normalized_name + u"\u0022"
-    sql = "INSERT INTO %s (date, stock_name, trx_value_pln, available_stock_no, orig_stock_no, purchase_price_pln) VALUES (\"%s\",%s,%s,%s,%s,%s)"
-    k.execute(sql % (table_name,row["date"],stock_name,row["trx_value_pln"],row["stock_no"],row["stock_no"],abs(row["trx_value_pln"]/row["stock_no"])))
+    sql = "INSERT INTO %s (date, stock_name, trx_value, stock_currency, available_stock_no, orig_stock_no, purchase_price) VALUES (\"%s\",%s,%s,\"%s\", %s,%s,%s)"
+    #Trx value here does not take into account fees!
+    #print sql % (table_name,row["date"],stock_name,row["trx_target_value"],row["stock_currency"],row["stock_no"],row["stock_no"],abs(row["trx_target_value"]/row["stock_no"]))
+
+    k.execute(sql % (table_name,row["date"],stock_name,abs(row["trx_local_value"]),row["stock_currency"],row["stock_no"],row["stock_no"],row["stock_rate"]))
     return None
 
 def update_stock_inventory(row, table, stock_left):
@@ -33,9 +36,10 @@ def update_stock_inventory(row, table, stock_left):
 
 def update_sales_table(row, stock_name, sale_value, purchase_cost):
     #comment = "Sold %s of stock for %s, while the purchase cost was %s" % (abs(row["stock_no"]), sale_value, purchase_cost)
-    sql_sale_result = "INSERT INTO sales VALUES(\"%s\",\"%s\",%s,%s,%i,%s,%s)"
+    sql_sale_result = "INSERT INTO sales VALUES(\"%s\",\"%s\",%s,\"%s\",%s,%i,%s,%s)"
+    #print sql_sale_result % (row["date"], stock_name, row["stock_rate"], row["stock_currency"], row["stock_rate"]*row["stock_no"], abs(row["stock_no"]), purchase_cost, row["stock_rate"]*row["stock_no"] - abs(purchase_cost))
     i = connection.cursor()
-    i.execute(sql_sale_result % (row["date"], stock_name, abs(sale_value / row["stock_no"]), sale_value, abs(row["stock_no"]), purchase_cost, sale_value - abs(purchase_cost)))
+    i.execute(sql_sale_result % (row["date"], stock_name, row["stock_rate"], row["stock_currency"], row["stock_rate"]*row["stock_no"], abs(row["stock_no"]), purchase_cost, row["stock_rate"]*abs(row["stock_no"]) - abs(purchase_cost)))
     i.connection.commit()
     i.close()
     return None
@@ -43,7 +47,7 @@ def update_sales_table(row, stock_name, sale_value, purchase_cost):
 def process_sale(row):
     """The heart of this app"""
     stock_to_sale_no = abs(row["stock_no"])
-    sale_value = row["trx_value_pln"] #defined only for convinience
+    sale_value = row["trx_target_value"] #defined only for convinience
     purchase_cost = 0.0
     normalized_name = row["stock_name"]
     normalized_name = normalized_name.replace('"','')
@@ -58,11 +62,11 @@ def process_sale(row):
     #In order to be able to compare sale value vs purchse costs
 
     for row_s in result_sales:
-        print 'Starting sale of ' + normalized_name + ", there's " + str(row_s["available_stock_no"]) + " available in the first stock table, row ID " + str(row_s["ID"])
+        print 'Starting sale of ' + normalized_name + ", there's " + str(row_s["available_stock_no"]) + " available in the stock table, row ID " + str(row_s["ID"])
         #If there's less stock to be sold than there are available stock in the first row of the given stock database, we just subtract one from the other and that's it
         if row_s["available_stock_no"] >= stock_to_sale_no:
             print "Now finishing sale of %s, using row ID: %s" % (normalized_name, row_s["ID"])
-            purchase_cost = purchase_cost + stock_to_sale_no * row_s["purchase_price_pln"]
+            purchase_cost = purchase_cost + stock_to_sale_no * row_s["purchase_price"]
 
             #update DB
             update_stock_inventory(row_s, table_name, (row_s["available_stock_no"] - stock_to_sale_no))
@@ -72,7 +76,7 @@ def process_sale(row):
 
         #If the sale is greater than the number of stock in the first registered purchase of that stock, we must sell all that stock, then move onto another row and keep selling
         elif row_s["available_stock_no"] < stock_to_sale_no:
-            purchase_cost = purchase_cost + row_s["available_stock_no"] * row_s["purchase_price_pln"]
+            purchase_cost = purchase_cost + row_s["available_stock_no"] * row_s["purchase_price"]
             stock_to_sale_no = stock_to_sale_no - row_s["available_stock_no"]
             print "Processing the sale using row ID: %s" % row_s["ID"]
             print "Updated stock_to_sale_no " + str(stock_to_sale_no)
@@ -85,7 +89,7 @@ def process_sale(row):
 
 
 
-connection = m.connect(host='localhost', user='stockprofit', db='stockprofit', port=3306, cursorclass=pymysql.cursors.DictCursor)
+connection = m.connect(host='127.0.0.1', user='stockprofit', db='stockprofit', port=3306, cursorclass=pymysql.cursors.DictCursor)
 k = connection.cursor()
 k.execute('SELECT * FROM input')
 result = k.fetchall()
